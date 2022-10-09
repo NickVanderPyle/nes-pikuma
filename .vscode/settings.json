@@ -1,0 +1,7 @@
+{
+    "workbench.editorAssociations": {
+        "*.chr": "hexEditor.hexedit",
+        "*.pal": "hexEditor.hexedit"
+    },
+    "hexeditor.dataInspector.autoReveal": true
+}
