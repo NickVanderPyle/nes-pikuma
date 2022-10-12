@@ -23,7 +23,7 @@ RESET:
 
     ; loop all memory to zero out.
     lda #0              ; a=0
-    ldx #$FF            ; x=0
+    ldx #0              ; x=0
 MemLoop:
     sta $0,x            ; store a into $00+x
     dex
