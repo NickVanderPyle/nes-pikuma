@@ -11,4 +11,33 @@
 .byte $00                           ; No PRG-RAM
 .byte $00, $00, $00, $00, $00       ; Padding to fill 16bytes of header.
 
+
 .segment "CODE"
+.org $8000
+
+RESET:
+    sei                 ; disable all IRQ
+    cld                 ; clear decimal mode (unsupported by NES)
+    ldx #$FF            ;
+    txs                 ; init stack pointer to end of stack (stack pointer holds low byte of stack pointer $01FF)
+
+    ; loop all memory to zero out.
+    lda #0              ; a=0
+    ldx #$FF            ; x=0
+MemLoop:
+    sta $0,x            ; store a into $00+x
+    dex
+    bne MemLoop         ; if x != 0, then loop
+
+NMI:
+    rti
+
+IRQ:
+    rti
+
+
+.segment "VECTORS"
+.org $FFFA
+.word NMI
+.word RESET
+.word IRQ
