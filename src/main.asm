@@ -1,34 +1,14 @@
-.include "../include/nes.inc"
-
-
+; iNES Header 16 bytes
 .segment "HEADER"
-  .byte $4E, $45, $53, $1A        ; iNES header identifier "NES", $1A
-  .byte $02                       ; 2x 16KB PRG code
-  .byte $01                       ; 1x  8KB CHR data
-  .byte %00000001                 ; mapper 0, vertical mirroring
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00
-  .byte $00, $00, $00, $00, $00   ; filler
-
-
-.segment "ZEROPAGE"
-
-
-; "nes" linker config requires a STARTUP section, even if it's empty
-.segment "STARTUP"
-Reset:
-
-
-.segment "VECTORS"
-  ; When an NMI happens (once per frame if enabled) the label nmi:
-  .addr NMI
-  ; When the processor first turns on or is reset, it will jump to the label reset:
-  .addr Reset
-
-
-.segment "CHARS"
-
+.org $7FF0                          ; 16bytes prior to CODE
+.byte $4E, $45, $53, $1A            ; NES newline
+.byte $02                           ; 2x 16Kb (32Kb) PRG-ROM
+.byte $01                           ; 1x 8Kb CHR-ROM
+.byte %00000000                     ; flags: horiz mirroring, no battery, mirror 0
+.byte %00000000                     ; flags: mapper 0, playchoice, nes2.0
+.byte $00                           ; No PRG-RAM
+.byte %00000000                     ; NTSC=0, PAL=1
+.byte $00                           ; No PRG-RAM
+.byte $00, $00, $00, $00, $00       ; Padding to fill 16bytes of header.
 
 .segment "CODE"
