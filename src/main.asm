@@ -1,6 +1,16 @@
+; constants
+PPU_CTRL    = $2000
+PPU_MASK    = $2001
+PPU_STATUS  = $2002
+OAM_ADDR    = $2003
+OAM_DATA    = $2004
+PPU_SCROLL  = $2005
+PPU_ADDR    = $2006
+PPU_DATA    = $2007
+
+
 ; iNES Header 16 bytes
 .segment "HEADER"
-.org $7FF0                          ; 16bytes prior to CODE
 .byte $4E, $45, $53, $1A            ; NES newline
 .byte $02                           ; 2x 16Kb (32Kb) PRG-ROM
 .byte $01                           ; 1x 8Kb CHR-ROM
@@ -13,7 +23,6 @@
 
 
 .segment "CODE"
-.org $8000
 
 RESET:
     sei                 ; disable all IRQ
@@ -21,13 +30,34 @@ RESET:
     ldx #$FF            ;
     txs                 ; init stack pointer to end of stack (stack pointer holds low byte of stack pointer $01FF)
 
-    ; loop all memory to zero out.
-    lda #0              ; a=0
-    ldx #0              ; x=0
-MemLoop:
-    sta $0,x            ; store a into $00+x
-    dex
-    bne MemLoop         ; if x != 0, then loop
+    inx                 ; rollover from FF to 00
+    txa                 ; a=0
+ClearRAM:
+    sta $0000,x         ; clear 0000-00FF
+    sta $0100,x         ; clear 0100-01FF
+    sta $0200,x         ; clear 0200-02FF
+    sta $0300,x         ; clear 0300-03FF
+    sta $0400,x         ; clear 0400-04FF
+    sta $0500,x         ; clear 0500-05FF
+    sta $0600,x         ; clear 0600-06FF
+    sta $0700,x         ; clear 0700-07FF
+    inx
+    bne ClearRAM
+
+Main:
+    ldx #$3F
+    stx PPU_ADDR        ; set PPU_ADDR hi-byte
+    ldx #$00
+    stx PPU_ADDR        ; set PPU_ADDR lo-byte
+    lda #$2A
+    sta PPU_DATA        ; Send 2A to PPU_DATA
+    lda #%00011110
+    sta PPU_MASK        ; set PPU_MASK to show bg
+
+
+LoopForever:
+    jmp LoopForever
+
 
 NMI:
     rti
@@ -37,7 +67,6 @@ IRQ:
 
 
 .segment "VECTORS"
-.org $FFFA
 .word NMI
 .word RESET
 .word IRQ
