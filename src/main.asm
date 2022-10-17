@@ -14,8 +14,14 @@ Main:
     ldx #$00
     stx PPU_ADDR        ; set PPU_ADDR lo-byte
 
-    lda #$2A
-    sta PPU_DATA        ; Send 2A to PPU_DATA
+    ldy #0
+loopPalette:
+    lda PaletteData,y    ; load from PaletteData+y
+    sta PPU_DATA        ; set value to PPU_DATA
+    iny
+    cpy #32
+    bne loopPalette
+
 
     lda #%00011110
     sta PPU_MASK        ; set PPU_MASK to show bg
@@ -31,6 +37,10 @@ NMI:
 IRQ:
     rti
 
+
+PaletteData:
+.byte $0F,$2A,$0C,$3A, $0F,$2A,$0C,$3A, $0F,$2A,$0C,$3A, $0F,$2A,$0C,$3A    ;bg
+.byte $0F,$10,$00,$26, $0F,$10,$00,$26, $0F,$10,$00,$26, $0F,$10,$00,$26    ;sprite
 
 .segment "VECTORS"
 .word NMI
