@@ -4,6 +4,18 @@
 
 .segment "CODE"
 
+.proc LoadPalette
+    ldy #0
+LoopPalette:
+    lda PaletteData,y    ; load from PaletteData+y
+    sta PPU_DATA        ; set value to PPU_DATA
+    iny
+    cpy #32
+    bne LoopPalette
+
+    rts
+.endproc
+
 RESET:
     INIT_NES
 
@@ -14,14 +26,7 @@ Main:
     ldx #$00
     stx PPU_ADDR        ; set PPU_ADDR lo-byte
 
-    ldy #0
-loopPalette:
-    lda PaletteData,y    ; load from PaletteData+y
-    sta PPU_DATA        ; set value to PPU_DATA
-    iny
-    cpy #32
-    bne loopPalette
-
+    jsr LoadPalette
 
     lda #%00011110
     sta PPU_MASK        ; set PPU_MASK to show bg
