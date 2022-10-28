@@ -1,6 +1,7 @@
 .include "consts.inc"
 .include "header.inc"
 .include "reset.inc"
+.include "utils.inc"
 
 .segment "CODE"
 
@@ -41,32 +42,21 @@ RESET:
     INIT_NES
 
 Main:
-    bit PPU_STATUS      ; reset PPU_ADDR latch
-    ldx #$3F
-    stx PPU_ADDR        ; set PPU_ADDR hi-byte
-    ldx #$00
-    stx PPU_ADDR        ; set PPU_ADDR lo-byte
+    PPU_SETADDR $3F00
     jsr LoadPalette
 
-    ;; set ppu addr to $2000 & load tiles of bg
-    bit PPU_STATUS      ; reset PPU_ADDR latch
-    ldx #$20
-    stx PPU_ADDR        ; set PPU_ADDR hi-byte
-    ldx #$00
-    stx PPU_ADDR        ; set PPU_ADDR lo-byte
+    PPU_SETADDR $2000
     jsr LoadBackground
 
-    ;; set ppu addr to $2000 & load tiles of bg
-    bit PPU_STATUS      ; reset PPU_ADDR latch
-    ldx #$23
-    stx PPU_ADDR        ; set PPU_ADDR hi-byte
-    ldx #$C0
-    stx PPU_ADDR        ; set PPU_ADDR lo-byte
+    PPU_SETADDR $23C0
     jsr LoadAttributes
 
 EnablePPURendering:
     lda #%10010000      ; enable NMI, set BG 2nd pattern table ($1000)
     sta PPU_CTRL
+    lda #0
+    sta PPU_SCROLL      ; disable scroll X
+    sta PPU_SCROLL      ; and Y
     lda #%00011110
     sta PPU_MASK        ; set PPU_MASK to show bg
 
