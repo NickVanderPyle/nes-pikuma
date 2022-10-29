@@ -3,6 +3,11 @@
 .include "reset.inc"
 .include "utils.inc"
 
+.segment "ZEROPAGE"
+Frame:      .res 1      ; reserve 1 byte to store frame counter
+Clock60:    .res 1      ; increment ever second
+
+
 .segment "CODE"
 
 .proc LoadPalette
@@ -41,6 +46,10 @@
 RESET:
     INIT_NES
 
+    lda #0
+    sta Frame
+    sta Clock60
+
 Main:
     PPU_SETADDR $3F00
     jsr LoadPalette
@@ -66,6 +75,16 @@ LoopForever:
 
 
 NMI:
+    inc Frame           ; Frames++
+
+    lda Frame
+    cmp #60             ; compare Frames w/ 60
+    bne Skip60              ; if != 0 goto :
+    inc Clock60
+    lda #0
+    sta Frame
+Skip60:
+
     rti
 
 IRQ:
