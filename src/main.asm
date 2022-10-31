@@ -6,7 +6,7 @@
 .segment "ZEROPAGE"
 Frame:      .res 1      ; reserve 1 byte to store frame counter
 Clock60:    .res 1      ; increment ever second
-
+BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
 
 .segment "CODE"
 
@@ -23,7 +23,7 @@ Clock60:    .res 1      ; increment ever second
 
 .proc LoadBackground
     ldy #0
-:   lda BackgroundData,y    ; load from BackgroundData+y
+:   lda (BgPtr),y    ; load from BackgroundData+y
     sta PPU_DATA            ; set value to PPU_DATA
     iny
     cpy #255
@@ -53,6 +53,11 @@ RESET:
 Main:
     PPU_SETADDR $3F00
     jsr LoadPalette
+
+    lda #<BackgroundData
+    sta BgPtr
+    lda #>BackgroundData
+    sta BgPtr+1
 
     PPU_SETADDR $2000
     jsr LoadBackground
