@@ -20,7 +20,11 @@ Wait1stVBlank:          ; wait for first VBLank
 ClearRAM:
     sta $0000,x         ; clear 0000-00FF
     sta $0100,x         ; clear 0100-01FF
+
+    lda #$FF
     sta $0200,x         ; clear 0200-02FF
+
+    lda #0
     sta $0300,x         ; clear 0300-03FF
     sta $0400,x         ; clear 0400-04FF
     sta $0500,x         ; clear 0500-05FF

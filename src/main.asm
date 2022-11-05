@@ -50,29 +50,15 @@ IncreaseHiByte:
     rts                      ; Return from subroutine
 .endproc
 
-.proc LoadText
-    PPU_SETADDR $21CB
+.proc LoadSprites
+    ldx #0
+LoopSprites:
+    lda SpriteData,x
+    sta $0200,x
+    inx
+    cpx #32
+    bne LoopSprites
 
-    ldy #0
-Loop:
-    lda TextMessage,Y       ; get char byte
-    beq EndLoop
-
-    cmp #32
-    bne DrawLetter
-DrawSpace:
-    lda #$24                ; tile 24 is empty space
-    sta PPU_DATA
-    jmp NextChar
-DrawLetter:
-    sec
-    sbc #55                 ; subtract 55 to get bute for char
-    sta PPU_DATA
-NextChar:
-    iny
-    jmp Loop
-
-EndLoop:
     rts
 .endproc
 
@@ -86,7 +72,7 @@ RESET:
 Main:
     jsr LoadPalette          ; Call LoadPalette subroutine to load 32 colors into our palette
     jsr LoadBackground       ; Call LoadBackground subroutine to load a full nametable of tiles and attributes
-    jsr LoadText             ; Call LoadText subroutine to draw the text message on the nametable
+    jsr LoadSprites
 
 EnablePPURendering:
     lda #%10010000      ; enable NMI, set BG 2nd pattern table ($1000)
@@ -104,6 +90,9 @@ LoopForever:
 
 NMI:
     inc Frame           ; Frames++
+
+    lda #$02            ; copy sprite data from $02**
+    sta $4014           ; OAM DMA copy starts when we write to $4014
 
     lda Frame
     cmp #60             ; compare Frames w/ 60
@@ -167,8 +156,20 @@ AttributeData:
 .byte %11111111, %11111111, %11111111, %11111111, %11111111, %11111111, %11111111, %11111111
 .byte %11111111, %11111111, %11111111, %11111111, %11111111, %11111111, %11111111, %11111111
 
-TextMessage:
-.byte "HELLO WORLD",$0
+SpriteData:
+; mario
+;     y    tile attr       x
+.byte $AE, $3A, %00000000, $98      ; x:16, y:16
+.byte $AE, $37, %00000000, $A0      ; x:24, y:16
+.byte $B6, $4F, %00000000, $98      ; x:16, y:24
+.byte $B6, $4F, %01000000, $A0      ; x:24, y:24 horizontal flip
+
+; goomba
+;     y    tile attr       x
+.byte $93, $70, %00100011, $C7      ; x:16, y:16
+.byte $93, $71, %00100011, $CF      ; x:24, y:16
+.byte $9B, $72, %00100011, $C7      ; x:16, y:24
+.byte $9B, $73, %00100011, $CF      ; x:24, y:24 horizontal flip
 
 .segment "CHARS"
 .incbin "mario.chr"
