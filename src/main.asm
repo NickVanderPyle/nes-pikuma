@@ -4,11 +4,26 @@
 .include "utils.inc"
 
 .segment "ZEROPAGE"
+Buttons:    .res 1
 Frame:      .res 1      ; reserve 1 byte to store frame counter
 Clock60:    .res 1      ; increment ever second
 BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
 
 .segment "CODE"
+
+.proc ReadControllers
+    lda #1
+    sta Buttons         ; 1 will help rotate only 8 times [00000001]
+    sta $4016           ; Controller latch=1 begins input collection mode
+    lsr                 ; shift-right the 1 off and zero the a-register.
+    sta $4016           ; Controller latch=0 begin output mode
+LoopButtons:
+    lda $4016           ; Read bit from controller into right most bit; $4016 immediately loaded w/ next button.
+    lsr                 ; Right shift a-register, button press into Carry Flag.
+    rol Buttons         ; Left-shift buttons and load carry into right most bit.
+    bcc LoopButtons     ; Will exit when the first "1" loaded into Buttons left-shifts into carry.
+    rts
+.endproc
 
 .proc LoadPalette
     PPU_SETADDR $3F00
@@ -93,6 +108,8 @@ NMI:
 
     lda #$02            ; copy sprite data from $02**
     sta $4014           ; OAM DMA copy starts when we write to $4014
+
+    jsr ReadControllers
 
     lda Frame
     cmp #60             ; compare Frames w/ 60
