@@ -5,6 +5,8 @@
 
 .segment "ZEROPAGE"
 Buttons:    .res 1
+XPos:       .res 1      ; player x
+YPos:       .res 1      ; player y
 Frame:      .res 1      ; reserve 1 byte to store frame counter
 Clock60:    .res 1      ; increment ever second
 BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
@@ -14,11 +16,11 @@ BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
 .proc ReadControllers
     lda #1
     sta Buttons         ; 1 will help rotate only 8 times [00000001]
-    sta $4016           ; Controller latch=1 begins input collection mode
+    sta JOYPAD1         ; Controller latch=1 begins input collection mode
     lsr                 ; shift-right the 1 off and zero the a-register.
-    sta $4016           ; Controller latch=0 begin output mode
+    sta JOYPAD1         ; Controller latch=0 begin output mode
 LoopButtons:
-    lda $4016           ; Read bit from controller into right most bit; $4016 immediately loaded w/ next button.
+    lda JOYPAD1         ; Read bit from controller into right most bit; $4016 immediately loaded w/ next button.
     lsr                 ; Right shift a-register, button press into Carry Flag.
     rol Buttons         ; Left-shift buttons and load carry into right most bit.
     bcc LoopButtons     ; Will exit when the first "1" loaded into Buttons left-shifts into carry.
@@ -80,9 +82,18 @@ LoopSprites:
 RESET:
     INIT_NES
 
+InitVariables:
     lda #0
     sta Frame
     sta Clock60
+    
+    ldx #0
+    lda SpriteData,x
+    sta YPos
+    ldx #3
+    lda SpriteData,x
+    sta XPos
+    
 
 Main:
     jsr LoadPalette          ; Call LoadPalette subroutine to load 32 colors into our palette
@@ -106,10 +117,52 @@ LoopForever:
 NMI:
     inc Frame           ; Frames++
 
-    lda #$02            ; copy sprite data from $02**
-    sta $4014           ; OAM DMA copy starts when we write to $4014
+OAMStartDMACopy:
+    lda #$02            ; copy sprite data from $0200
+    sta PPU_OAM_DMA    ; OAM DMA copy starts when we write to $4014
 
+ControllerInput:
     jsr ReadControllers
+
+; button bit flags: A, B, Select, Start, Up, Down, Left, Right
+CheckRightButton:
+    lda Buttons
+    and #BUTTON_RIGHT
+    beq CheckLeftButton
+        inc XPos
+CheckLeftButton:
+    lda Buttons
+    and #BUTTON_LEFT
+    beq CheckDownButton
+        dec XPos
+CheckDownButton:
+    lda Buttons
+    and #BUTTON_DOWN
+    beq CheckUpButton
+        inc YPos
+CheckUpButton:
+    lda Buttons
+    and #BUTTON_UP
+    beq :+
+        dec YPos
+:
+
+UpdateSpritePosition:
+    lda XPos
+    sta $0203
+    sta $020B
+    clc
+    adc #8
+    sta $0207
+    sta $020F
+
+    lda YPos
+    sta $0200
+    sta $0204
+    clc
+    adc #8
+    sta $0208
+    sta $020C
 
     lda Frame
     cmp #60             ; compare Frames w/ 60
