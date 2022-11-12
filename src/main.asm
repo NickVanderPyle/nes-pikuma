@@ -9,8 +9,10 @@ Buttons:    .res 1
 XPos:       .res 2      ; player x  (8.8, fixed point), hi-byte display portion, lo-byte sub-pixel fractional
 YPos:       .res 2      ; player y
 
-XVel:       .res 1      ; Player velocity pixel per 256 frames.
+XVel:       .res 1      ; Player velocity (signed) pixel per 256 frames.
 YVel:       .res 1      ;
+
+TileOffset: .res 1      ; 0 or +4
 
 Frame:      .res 1      ; reserve 1 byte to store frame counter
 Clock60:    .res 1      ; increment ever second
@@ -18,7 +20,7 @@ BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
 
 MAXSPEED    = 120       ; max speed limit in 1/256 pixels per frame
 ACCEL       = 2         ; movement accel in 1/256 px/frame^2
-BRAKE       = 2         ; stopping accel in 1/256 px/frame^2
+BRAKE       = 4         ; stopping accel in 1/256 px/frame^2
 
 .segment "CODE"
 
@@ -95,10 +97,7 @@ InitVariables:
     lda #0
     sta Frame
     sta Clock60
-
-    lda #20
-    sta XVel
-    sta YVel
+    sta TileOffset
     
     ldx #0
     lda SpriteData,x
@@ -139,9 +138,55 @@ ControllerInput:
 
 ; button bit flags: A, B, Select, Start, Up, Down, Left, Right
 CheckRightButton:
-    ; todo
+    lda Buttons
+    and #BUTTON_RIGHT
+    beq NotRight
+        lda XVel
+        bmi NotRight
+            clc
+            adc #ACCEL
+            cmp #MAXSPEED       ; clamp vel to maxspeed
+            bcc :+
+                lda #MAXSPEED
+            :
+            sta XVel
+            jmp CheckLeftButton
+    NotRight:
+        lda XVel
+        bmi CheckLeftButton
+            cmp #BRAKE      ; clamp to min of 
+            bcs :+
+                lda #BRAKE+1
+            :
+            sbc #BRAKE
+            sta XVel
+
 CheckLeftButton:
-    ; todo
+    lda Buttons
+    and #BUTTON_LEFT
+    beq NotLeft
+        lda XVel
+        beq :+
+            bpl NotLeft
+        :
+        sec
+        sbc #ACCEL
+        cmp #256-MAXSPEED
+        bcs :+
+            lda #256-MAXSPEED
+        :
+        sta XVel
+        jmp CheckDownButton
+    NotLeft:
+        lda XVel
+        bpl CheckDownButton
+        cmp #256-BRAKE
+        bcc :+
+            lda #256-BRAKE
+        :
+        adc #BRAKE
+        sta XVel
+
 CheckDownButton:
     ; todo
 CheckUpButton:
@@ -150,6 +195,9 @@ EndInputCheck:
 
 UpdateSpritePosition:
     lda XVel
+    bpl :+
+        dec XPos+1          ; if velocity is negative, decrement from hi-byte
+    :
     clc
     adc XPos            ; when overflows, sets carry, carry will add to XPos hi-byte
     sta XPos
@@ -157,7 +205,7 @@ UpdateSpritePosition:
     adc XPos+1          ; if there was a carry, then this will add +1.
     sta XPos+1
 
-DrawSpritePosition:
+DrawSpriteTile:
     lda XPos+1
     sta $0203
     sta $020B
@@ -173,6 +221,35 @@ DrawSpritePosition:
     adc #8
     sta $0208
     sta $020C
+
+    lda #0
+    sta TileOffset
+    lda XPos+1
+    and #%00000001
+    beq :+
+        lda #4
+        sta TileOffset
+    :
+
+    lda #$18         ; update tile offset for animation
+    clc
+    adc TileOffset
+    sta $201
+
+    lda #$1A         ; update tile offset for animation
+    clc
+    adc TileOffset
+    sta $205
+
+    lda #$19         ; update tile offset for animation
+    clc
+    adc TileOffset
+    sta $209
+
+    lda #$1B         ; update tile offset for animation
+    clc
+    adc TileOffset
+    sta $20D
 
     lda Frame
     cmp #60             ; compare Frames w/ 60
