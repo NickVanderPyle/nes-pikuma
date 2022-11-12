@@ -5,11 +5,20 @@
 
 .segment "ZEROPAGE"
 Buttons:    .res 1
-XPos:       .res 1      ; player x
-YPos:       .res 1      ; player y
+
+XPos:       .res 2      ; player x  (8.8, fixed point), hi-byte display portion, lo-byte sub-pixel fractional
+YPos:       .res 2      ; player y
+
+XVel:       .res 1      ; Player velocity pixel per 256 frames.
+YVel:       .res 1      ;
+
 Frame:      .res 1      ; reserve 1 byte to store frame counter
 Clock60:    .res 1      ; increment ever second
 BgPtr:      .res 2      ; Reserve 2 bytes, lo-byte and hi-byte.
+
+MAXSPEED    = 120       ; max speed limit in 1/256 pixels per frame
+ACCEL       = 2         ; movement accel in 1/256 px/frame^2
+BRAKE       = 2         ; stopping accel in 1/256 px/frame^2
 
 .segment "CODE"
 
@@ -86,13 +95,17 @@ InitVariables:
     lda #0
     sta Frame
     sta Clock60
+
+    lda #20
+    sta XVel
+    sta YVel
     
     ldx #0
     lda SpriteData,x
-    sta YPos
+    sta YPos+1          ; set y hi-byte
     ldx #3
     lda SpriteData,x
-    sta XPos
+    sta XPos+1          ; set x lo-byte
     
 
 Main:
@@ -126,29 +139,26 @@ ControllerInput:
 
 ; button bit flags: A, B, Select, Start, Up, Down, Left, Right
 CheckRightButton:
-    lda Buttons
-    and #BUTTON_RIGHT
-    beq CheckLeftButton
-        inc XPos
+    ; todo
 CheckLeftButton:
-    lda Buttons
-    and #BUTTON_LEFT
-    beq CheckDownButton
-        dec XPos
+    ; todo
 CheckDownButton:
-    lda Buttons
-    and #BUTTON_DOWN
-    beq CheckUpButton
-        inc YPos
+    ; todo
 CheckUpButton:
-    lda Buttons
-    and #BUTTON_UP
-    beq :+
-        dec YPos
-:
+    ; todo
+EndInputCheck:
 
 UpdateSpritePosition:
-    lda XPos
+    lda XVel
+    clc
+    adc XPos            ; when overflows, sets carry, carry will add to XPos hi-byte
+    sta XPos
+    lda #0
+    adc XPos+1          ; if there was a carry, then this will add +1.
+    sta XPos+1
+
+DrawSpritePosition:
+    lda XPos+1
     sta $0203
     sta $020B
     clc
@@ -156,7 +166,7 @@ UpdateSpritePosition:
     sta $0207
     sta $020F
 
-    lda YPos
+    lda YPos+1
     sta $0200
     sta $0204
     clc
@@ -172,6 +182,7 @@ UpdateSpritePosition:
     sta Frame
 Skip60:
 
+
     rti
 
 IRQ:
@@ -179,30 +190,22 @@ IRQ:
 
 
 PaletteData:
-.byte $22,$29,$1A,$0F, $22,$36,$17,$0F, $22,$30,$21,$0F, $22,$27,$17,$0F ; Background palette
-.byte $22,$16,$27,$18, $22,$1A,$30,$27, $22,$16,$30,$27, $22,$0F,$36,$17 ; Sprite palette
+.byte $1D,$10,$20,$2D, $1D,$1D,$2D,$10, $1D,$0C,$19,$1D, $1D,$06,$17,$07 ; Background palette
+.byte $0F,$1D,$19,$29, $0F,$08,$18,$38, $0F,$0C,$1C,$3C, $0F,$2D,$10,$30 ; Sprite palette
 
 ;; Background data with tile numbers that must be copied to the nametable
 BackgroundData:
 .incbin "background.nam"
 
 SpriteData:
-; mario
 ;     y    tile attr       x
-.byte $AE, $3A, %00000000, $98      ; x:16, y:16
-.byte $AE, $37, %00000000, $A0      ; x:24, y:16
-.byte $B6, $4F, %00000000, $98      ; x:16, y:24
-.byte $B6, $4F, %01000000, $A0      ; x:24, y:24 horizontal flip
-
-; goomba
-;     y    tile attr       x
-.byte $93, $70, %00100011, $C7      ; x:16, y:16
-.byte $93, $71, %00100011, $CF      ; x:24, y:16
-.byte $9B, $72, %00100011, $C7      ; x:16, y:24
-.byte $9B, $73, %00100011, $CF      ; x:24, y:24 horizontal flip
+.byte $80, $18, %00000000, $10      ; x:16, y:16
+.byte $80, $1A, %00000000, $18      ; x:24, y:16
+.byte $88, $19, %00000000, $10      ; x:16, y:24
+.byte $88, $1B, %00000000, $18      ; x:24, y:24 horizontal flip
 
 .segment "CHARS"
-.incbin "mario.chr"
+.incbin "battle.chr"
 
 .segment "VECTORS"
 .word NMI
