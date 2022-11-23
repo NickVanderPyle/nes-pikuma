@@ -50,13 +50,41 @@ LoopButtons:
     rts
 .endproc
 
-.proc LoadBackground
-    lda #<BackgroundData     ; Fetch the lo-byte of BackgroundData address
+.proc LoadNametable0
+    lda #<BackgroundData0    ; Fetch the lo-byte of BackgroundData address
     sta BgPtr
-    lda #>BackgroundData     ; Fetch the hi-byte of BackgroundData address
+    lda #>BackgroundData0    ; Fetch the hi-byte of BackgroundData address
     sta BgPtr+1
 
     PPU_SETADDR $2000
+
+    ldx #$00                 ; X = 0 --> x is the outer loop index (hi-byte) from $0 to $4
+    ldy #$00                 ; Y = 0 --> y is the inner loop index (lo-byte) from $0 to $FF
+
+OuterLoop:
+InnerLoop:
+    lda (BgPtr),y            ; Fetch the value *pointed* by BgPtr + Y
+    sta PPU_DATA             ; Store in the PPU data
+    iny                      ; Y++
+    cpy #0                   ; If Y == 0 (wrapped around 256 times)?
+    beq IncreaseHiByte       ;   Then: we need to increase the hi-byte
+    jmp InnerLoop            ;   Else: Continue with the inner loop
+IncreaseHiByte:
+    inc BgPtr+1              ; We increment the hi-byte pointer to point to the next background section (next 255-chunk)
+    inx                      ; X++
+    cpx #4                   ; Compare X with #4
+    bne OuterLoop            ;   If X is still not 4, then we keep looping back to the outer loop
+
+    rts                      ; Return from subroutine
+.endproc
+
+.proc LoadNametable1
+    lda #<BackgroundData1    ; Fetch the lo-byte of BackgroundData address
+    sta BgPtr
+    lda #>BackgroundData1    ; Fetch the hi-byte of BackgroundData address
+    sta BgPtr+1
+
+    PPU_SETADDR $2400
 
     ldx #$00                 ; X = 0 --> x is the outer loop index (hi-byte) from $0 to $4
     ldy #$00                 ; Y = 0 --> y is the inner loop index (lo-byte) from $0 to $FF
@@ -109,7 +137,10 @@ InitVariables:
 
 Main:
     jsr LoadPalette          ; Call LoadPalette subroutine to load 32 colors into our palette
-    jsr LoadBackground       ; Call LoadBackground subroutine to load a full nametable of tiles and attributes
+
+    jsr LoadNametable0       ; Fill nametable 0 ($2000)
+    jsr LoadNametable1       ; Fill nametable 0 ($2400)
+    
     jsr LoadSprites
 
 EnablePPURendering:
@@ -132,6 +163,12 @@ NMI:
 OAMStartDMACopy:
     lda #$02            ; copy sprite data from $0200
     sta PPU_OAM_DMA    ; OAM DMA copy starts when we write to $4014
+
+RefreshRendering:
+    lda #%10010000
+    sta PPU_CTRL
+    lda #%00011110
+    sta PPU_MASK
 
 ControllerInput:
     jsr ReadControllers
@@ -251,6 +288,7 @@ DrawSpriteTile:
     adc TileOffset
     sta $20D
 
+SetGameClock:
     lda Frame
     cmp #60             ; compare Frames w/ 60
     bne Skip60              ; if != 0 goto :
@@ -271,8 +309,11 @@ PaletteData:
 .byte $0F,$1D,$19,$29, $0F,$08,$18,$38, $0F,$0C,$1C,$3C, $0F,$2D,$10,$30 ; Sprite palette
 
 ;; Background data with tile numbers that must be copied to the nametable
-BackgroundData:
-.incbin "background.nam"
+BackgroundData0:
+.incbin "nametable0.nam"
+
+BackgroundData1:
+.incbin "nametable1.nam"
 
 SpriteData:
 ;     y    tile attr       x
