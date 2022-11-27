@@ -22,6 +22,9 @@ MAXSPEED    = 120       ; max speed limit in 1/256 pixels per frame
 ACCEL       = 2         ; movement accel in 1/256 px/frame^2
 BRAKE       = 4         ; stopping accel in 1/256 px/frame^2
 
+XScroll:        .res 1      ; Horizontal Scroll position
+CurrNametable:  .res 1      ; starting nametable 0 or 1
+
 .segment "CODE"
 
 .proc ReadControllers
@@ -126,6 +129,8 @@ InitVariables:
     sta Frame
     sta Clock60
     sta TileOffset
+    sta XScroll
+    sta CurrNametable
     
     ldx #0
     lda SpriteData,x
@@ -164,8 +169,24 @@ OAMStartDMACopy:
     lda #$02            ; copy sprite data from $0200
     sta PPU_OAM_DMA    ; OAM DMA copy starts when we write to $4014
 
+ScrollBackground:
+    inc XScroll
+
+    lda XScroll
+    bne :+
+        lda CurrNametable
+        eor #1
+        sta CurrNametable
+    :
+
+    lda XScroll
+    sta PPU_SCROLL      ; disable scroll X
+    lda #0
+    sta PPU_SCROLL      ; and Y
+
 RefreshRendering:
     lda #%10010000
+    ora CurrNametable
     sta PPU_CTRL
     lda #%00011110
     sta PPU_MASK
